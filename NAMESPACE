@@ -1,0 +1,17 @@
+export("compIndexBuilder")
+import("shiny", "shinydashboard","dplyr", "readxl",
+        "forecast", "tidyr","corrplot", "missForest", "zoo",
+        "tibble")
+importFrom("DT", "DTOutput", "datatable", "renderDT", "formatStyle","styleInterval", "formatRound")
+importFrom("plotly", "layout", "plot_ly", "ggplotly", "plotlyOutput", "renderPlotly", "plotly_empty")
+importFrom("ggplot2", "geom_errorbar","geom_tile", "geom_ribbon", "geom_text", "scale_fill_gradient2", "scale_color_manual")
+importFrom("ggplot2", "scale_fill_manual","scale_linetype_manual", "element_blank", "coord_fixed")
+importFrom("ggplot2", "aes", "ggplot", "element_text", "theme", "labs", "geom_bar", "theme_minimal","geom_col","coord_flip", "geom_line", "geom_point")
+importFrom("psych", "alpha")
+importFrom("grDevices", "colorRampPalette")
+importFrom("graphics","text") 
+importFrom("stats", "HoltWinters", "biplot", "complete.cases", "cor", "fitted", "lm", "median", "prcomp", "predict", "reorder", "sd", "ts") 
+importFrom("utils", "head", "read.csv", "write.csv") 
+importFrom("tools", "file_ext")
+importFrom("networkD3", "sankeyNetwork", "renderSankeyNetwork")
+importFrom ("utils", "globalVariables")

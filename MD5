@@ -1,0 +1,12 @@
+4b25734663cc5f5c3858e9f19368b500 *DESCRIPTION
+aa393a5b282dddae6b1f787f0615a926 *NAMESPACE
+47cbfb57fca6fc07e9607788a38365e9 *R/compIndexBuilder.R
+a76d601f853ca05b5213b2bf2d79a8d0 *R/helper-testdata.R
+0bb08cf3bb84761e2ca68c987e00d8e5 *R/zzz.R
+5ad029d3963fc247d3ea78c961b7f050 *inst/extdata/Example.csv
+5d91db323ee9da5beb784246213e483d *man/compIndexBuilder.Rd
+a76d601f853ca05b5213b2bf2d79a8d0 *tests/testthat/helper-testdata.R
+667fd6cd58b540ed7f6958b4b72299ab *tests/testthat/test-internal-net.R
+c274b0c2ef3e93d32793dc48f0c746e2 *tests/testthat/test-run_app.R
+4e555b579ab2372e43d7b7b9e508ee6f *tests/testthat/test-utils.R
+b2469694cd46c8a806f173e1a2cea07c *tests/testthat/testthat.R
