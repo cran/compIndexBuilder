@@ -1,63 +1,48 @@
 Package: compIndexBuilder
 Type: Package
-Version: 1.0.0
 Title: Composite Index Builder & Analytics 'shiny' App
+Version: 2.0.0
 Authors@R: c(
-      person(given = "Hossein",
-        family = "Hassani",
-        role = c("aut"),
-        email = "Hassani.stat@gmail.com"
-        ),
-       person(given = "Leila",
-        family = "Marvian Mashhad",
-        role = c("aut","cre"),
-        email = "Leila.marveian@gmail.com"
-        ),
-      person(given = "Steve",
-        family = "Macfeely",
-        role = c("aut"),
-        email = "Steve.MACFEELY@oecd.org"
-        ),
-      person(given = "Petra",
-        family = "Kynclova",
-        role = c("aut"),
-        email = "petra.kynclova@unctad.org"
-        ),
-      person(given = "Nour",
-        family = "Barnat",
-        role = c("aut"),
-        email = "nour.barnat@unctad.org"
-        ),    
-      person(given = "Fernando",
-        family = "CANTU BAZALDUA",
-        role = c("aut"),
-        email = "f.cantu@unido.org"
-        )
+    person("Hossein", "Hassani", role = "aut",
+           email = "hassani.stat@gmail.com"),
+    person("Steve", "Macfeely", role = "aut",
+           email = "Steve.MACFEELY@oecd.org"),
+    person("Petra", "Kynclova", role = "aut",
+           email = "petra.kynclova@unctad.org"),
+    person("Nour", "Barnat", role = "aut",
+           email = "nour.barnat@unctad.org"),
+    person("Leila", "Marvian Mashhad", role = c("aut", "cre"),
+           email = "leila.marveian@gmail.com"),
+    person("Fernando", "CANTU BAZALDUA", role = "aut",
+           email = "f.cantu@unido.org")
     )
-Description: Provides an interactive 'shiny' web application for constructing, analyzing, 
-    and visualizing composite indices from multidimensional datasets. 
-    Users can upload or select indicator data, group variables into logical categories, 
-    apply normalization and weighting methods (such as 'equal' or 'custom' schemes), 
-    and compute aggregate composite indices. 
-    The 'shiny' interface includes tools for exploring results through tables, plots, 
-    and data exports, making it useful for researchers, policymakers, and analysts 
-    interested in index-based evaluations.
-License: GPL-3
-Depends: R (>= 4.1.0)
-Imports: shiny, plotly, shinydashboard, dplyr, readxl, forecast, tidyr,
-        corrplot, missForest, zoo, tibble, DT, ggplot2, networkD3,
-        psych
-Suggests: testthat (>= 3.0.0)
-Config/testthat/edition: 3
-Maintainer: Leila Marvian Mashhad <Leila.marveian@gmail.com>
-NeedsCompilation: no
-Encoding: UTF-8
-Packaged: 2025-10-14 19:22:03 UTC; HAMIAN
 Author: Hossein Hassani [aut],
-  Leila Marvian Mashhad [aut, cre],
   Steve Macfeely [aut],
   Petra Kynclova [aut],
   Nour Barnat [aut],
+  Leila Marvian Mashhad [aut, cre],
   Fernando CANTU BAZALDUA [aut]
+Maintainer: Leila Marvian Mashhad <leila.marveian@gmail.com>
+Description: Provides an interactive 'shiny' application for constructing,
+    analysing, comparing, and visualising composite indices from tabular
+    multidimensional data. Supports multi-sheet 'Excel' workbooks with
+    active-sheet selection, refresh controls, per-sheet and workbook-wide
+    exports, missing-data processing, indicator direction and normalisation
+    controls, equal and custom weighting, entity-level ranking, time-series
+    analysis and forecasting, entity comparisons, pillar-based sub-indices
+    with equal, custom, correlation-based, or principal-component weights, and
+    diagnostic tools including internal-consistency reliability assessment,
+    coefficient of variation, principal component analysis, sensitivity analysis,
+    correlation heatmaps, and weighted flow visualizations.
+License: GPL-3
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: shiny, shinydashboard, DT, plotly, ggplot2, dplyr, readxl,
+        forecast, tidyr, networkD3, psych, corrplot, missForest, zoo,
+        jsonlite
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3
+NeedsCompilation: no
+Packaged: 2026-08-19 16:43:21 UTC; marvian
 Repository: CRAN
-Date/Publication: 2025-10-20 19:20:02 UTC
+Date/Publication: 2026-08-19 22:00:22 UTC
