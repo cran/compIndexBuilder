@@ -1,7 +1,7 @@
 Package: compIndexBuilder
 Type: Package
 Title: Composite Index Builder & Analytics 'shiny' App
-Version: 2.0.0
+Version: 2.1.0
 Authors@R: c(
     person("Hossein", "Hassani", role = "aut",
            email = "hassani.stat@gmail.com"),
@@ -27,8 +27,10 @@ Description: Provides an interactive 'shiny' application for constructing,
     analysing, comparing, and visualising composite indices from tabular
     multidimensional data. Supports multi-sheet 'Excel' workbooks with
     active-sheet selection, refresh controls, per-sheet and workbook-wide
-    exports, missing-data processing, indicator direction and normalisation
-    controls, equal and custom weighting, entity-level ranking, time-series
+    exports, automatic reshaping of wide indicator-year columns such as
+    'IN1-2019' into panel form, configurable missing-value code handling,
+    indicator direction and normalisation controls, equal and custom weighting,
+    entity-level ranking, time-series
     analysis and forecasting, entity comparisons, pillar-based sub-indices
     with equal, custom, correlation-based, or principal-component weights, and
     diagnostic tools including internal-consistency reliability assessment,
@@ -43,6 +45,6 @@ Imports: shiny, shinydashboard, DT, plotly, ggplot2, dplyr, readxl,
 Suggests: testthat (>= 3.0.0)
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2026-08-19 16:43:21 UTC; marvian
+Packaged: 2026-09-13 18:30:00 UTC; marvian
 Repository: CRAN
-Date/Publication: 2026-08-19 22:00:22 UTC
+Date/Publication: 2026-09-13 18:40:02 UTC

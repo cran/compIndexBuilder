@@ -4,10 +4,11 @@
 \title{Composite Index Builder and Analytics Shiny Application}
 \description{
 Provides an interactive Shiny application for building and analysing composite
-indices from multidimensional tabular data. Version 2 supports multi-sheet
-Excel workbooks, sheet-level exports, data processing, custom and pillar-based
-weighting, rankings, time-series analysis, forecasting, comparisons, and
-statistical diagnostics.
+indices from multidimensional tabular data. Version 2.1 supports multi-sheet
+Excel workbooks, automatic conversion of indicator-year headers such as
+\code{IN1-2019} into panel form, configurable missing-value codes, sheet-level
+exports, data processing, custom and pillar-based weighting, rankings,
+time-series analysis, forecasting, comparisons, and statistical diagnostics.
 }
 \details{
 Launch the application in an interactive R session with

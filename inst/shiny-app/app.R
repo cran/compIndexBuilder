@@ -1,10 +1,12 @@
 # ================================================================
-# Composite Index Builder & Analytics Platform - Version 2.0.0
+# Composite Index Builder & Analytics Platform - Version 2.1.0
 # Features:
 #   * CSV + Excel input
 #   * Multi-sheet Excel loading with workbook-wide active-sheet selector
 #   * Refresh workbook sheet list + load/refresh active sheet
 #   * Individual download for every loaded sheet (+ ZIP all sheets)
+#   * Indicator-year wide-layout detection and panel reshaping
+#   * Configurable missing-value code standardisation
 #   * Column role detection and mapping
 #   * Missing-data handling and normalization
 #   * Mixed indicator directions
@@ -44,6 +46,17 @@ library(psych)
 library(corrplot)
 library(missForest)
 library(zoo)
+
+# Data-format helpers are kept in a separate file so the indicator-year
+# reshaping and missing-code logic can be tested independently of Shiny.
+helper_file <- file.path(getwd(), "data_prep_helpers.R")
+if (!file.exists(helper_file)) {
+  helper_file <- system.file("shiny-app", "data_prep_helpers.R", package = "compIndexBuilder")
+}
+if (!nzchar(helper_file) || !file.exists(helper_file)) {
+  stop("The bundled data preparation helpers could not be found.", call. = FALSE)
+}
+source(helper_file, local = TRUE)
 
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
@@ -121,50 +134,24 @@ calculate_composite_index_universal <- function(data, weights, selected_indicato
 }
 
 # ---- File import -------------------------------------------------------------
-clean_imported_data <- function(data, first_col_names = FALSE) {
-  data <- as.data.frame(data, stringsAsFactors = FALSE, check.names = FALSE)
-
-  # Drop fully empty rows/columns.
-  if (nrow(data) > 0 && ncol(data) > 0) {
-    row_all_na <- apply(data, 1, function(r) all(is.na(r) | trimws(as.character(r)) == ""))
-    if (any(row_all_na)) data <- data[!row_all_na, , drop = FALSE]
-
-    col_all_na <- vapply(data, function(x) all(is.na(x) | trimws(as.character(x)) == ""), logical(1))
-    if (any(col_all_na)) data <- data[, !col_all_na, drop = FALSE]
-  }
-
-  # Make names syntactically safe and unique.
-  names(data) <- make.names(names(data), unique = TRUE)
-
-  # Convert mostly-numeric character columns to numeric.
-  for (nm in names(data)) {
-    if (is.character(data[[nm]])) {
-      raw_nonmissing <- !is.na(data[[nm]]) & trimws(data[[nm]]) != ""
-      if (sum(raw_nonmissing) > 0) {
-        numeric_test <- suppressWarnings(as.numeric(gsub(",", "", data[[nm]])))
-        numeric_ratio <- sum(!is.na(numeric_test) & raw_nonmissing) / sum(raw_nonmissing)
-        if (is.finite(numeric_ratio) && numeric_ratio >= 0.8) {
-          data[[nm]] <- numeric_test
-        }
-      }
-    }
-  }
-
-  if (first_col_names && ncol(data) >= 1) {
-    first_col <- as.character(data[[1]])
-    valid_ids <- !is.na(first_col) & trimws(first_col) != ""
-    if (all(valid_ids) && length(unique(first_col)) == nrow(data)) {
-      # Keep the identifier column in the data so it can still be mapped as
-      # Entity/Identifier; also expose it as row names for convenience.
-      rownames(data) <- first_col
-    }
-  }
-
-  data
+clean_imported_data <- function(data, first_col_names = FALSE,
+                                data_layout = "auto",
+                                missing_tokens = c("#N/A", "N/A", "NA", "..", "...", "NULL", "null"),
+                                zero_is_missing = FALSE) {
+  prepare_imported_data(
+    data,
+    layout = data_layout,
+    missing_tokens = missing_tokens,
+    zero_is_missing = zero_is_missing,
+    first_col_names = first_col_names
+  )
 }
 
 read_data_file <- function(file_path, extension, sheet_name = NULL,
-                           has_header = TRUE, first_col_names = FALSE) {
+                           has_header = TRUE, first_col_names = FALSE,
+                           data_layout = "auto",
+                           missing_tokens = c("#N/A", "N/A", "NA", "..", "...", "NULL", "null"),
+                           zero_is_missing = FALSE) {
   extension <- tolower(extension)
   if (extension %in% c("xlsx", "xls")) {
     raw <- readxl::read_excel(
@@ -187,7 +174,13 @@ read_data_file <- function(file_path, extension, sheet_name = NULL,
     names(raw) <- paste0("Column_", seq_len(ncol(raw)))
   }
 
-  clean_imported_data(raw, first_col_names = first_col_names)
+  clean_imported_data(
+    raw,
+    first_col_names = first_col_names,
+    data_layout = data_layout,
+    missing_tokens = missing_tokens,
+    zero_is_missing = zero_is_missing
+  )
 }
 
 # ---- Column role detection ---------------------------------------------------
@@ -571,6 +564,28 @@ ui <- dashboardPage(
             fileInput("data_file", "Choose CSV or Excel File", accept = c(".csv", ".xlsx", ".xls")),
             checkboxInput("has_header", "First row contains column names", TRUE),
             checkboxInput("first_col_names", "First column contains row identifiers (column will be retained)", FALSE),
+            selectInput(
+              "data_layout", "Data layout:",
+              choices = c(
+                "Auto-detect indicator-year columns (recommended)" = "auto",
+                "Standard / already tidy data" = "standard",
+                "Force indicator-year wide format" = "indicator_year"
+              ),
+              selected = "auto"
+            ),
+            textInput(
+              "missing_tokens", "Text codes that mean missing (comma separated):",
+              value = "#N/A, N/A, NA, .., ..., NULL"
+            ),
+            checkboxInput(
+              "zero_is_missing",
+              "Treat numeric 0 / 0.00 as missing (only if zero is a missing-data code)",
+              FALSE
+            ),
+            p(
+              "Keep headers such as IN1-2019, IN1-2020, IN2-2019. In Auto mode the app separates the indicator name from the year and reshapes the sheet to Entity × Year × Indicator. Do not rename all indicator columns to years only.",
+              class = "small-note"
+            ),
 
             conditionalPanel(
               condition = "output.is_excel_upload",
@@ -602,7 +617,7 @@ ui <- dashboardPage(
                                class = "btn-primary", icon = icon("refresh"), width = "100%")
                 ),
                 column(6,
-                  actionButton("reload_active", "Reload with Header Options",
+                  actionButton("reload_active", "Reload with Import Options",
                                class = "btn-default", icon = icon("repeat"), width = "100%")
                 )
               ),
@@ -629,6 +644,14 @@ ui <- dashboardPage(
           box(
             title = "Loaded Sheets", status = "info", solidHeader = TRUE, width = 12,
             DTOutput("loaded_sheets_table")
+          )
+        ),
+
+        fluidRow(
+          box(
+            title = "Import Guidance", status = "warning", solidHeader = TRUE, width = 12,
+            uiOutput("import_guidance"),
+            DTOutput("indicator_year_map_table")
           )
         ),
 
@@ -699,6 +722,7 @@ ui <- dashboardPage(
               ),
               selected = "remove"
             ),
+            p("For sparse multi-year panels, removing incomplete rows can discard many observations. Use 'Keep missing' for missing-aware aggregation or an imputation method when appropriate. PCA requires enough complete or imputed rows.", class = "small-note"),
             selectInput(
               "direction_option", "Indicator direction:",
               choices = c("Higher is better" = "higher", "Lower is better" = "lower", "Mixed" = "mixed"),
@@ -708,6 +732,7 @@ ui <- dashboardPage(
               condition = "input.direction_option == 'mixed'",
               uiOutput("indicator_directions_ui")
             ),
+            p("Example: if a high value of IN3 is undesirable, choose Mixed and set IN3 to 'Lower is better'.", class = "small-note"),
             numericInput("min_data_points", "Minimum rows per entity:", value = 1, min = 1, step = 1),
             actionButton("process_data", "Process Data", class = "btn-primary btn-lg", icon = icon("play"))
           )
@@ -952,6 +977,8 @@ server <- function(input, output, session) {
     raw_data = NULL,
     active_sheet = NULL,
     column_info = NULL,
+    import_report = NULL,
+    indicator_year_map = NULL,
     mapping_confirmed = FALSE,
     entity_column = NULL,
     time_column = NULL,
@@ -992,6 +1019,8 @@ server <- function(input, output, session) {
     values$active_sheet <- sheet_name
     values$raw_data <- values$sheets[[sheet_name]]
     values$column_info <- detect_column_roles(values$raw_data)
+    values$import_report <- attr(values$raw_data, "compIndex_import_report")
+    values$indicator_year_map <- attr(values$raw_data, "compIndex_indicator_year_map")
     reset_analysis_state(clear_mapping = TRUE)
     update_column_mapping_choices()
   }
@@ -1009,6 +1038,19 @@ server <- function(input, output, session) {
     updateSelectInput(session, "entity_column", choices = all_cols, selected = entity_default)
     updateSelectInput(session, "time_column", choices = c("None" = "", all_cols), selected = time_default)
     updateSelectInput(session, "identifier_column", choices = c("None" = "", all_cols), selected = "")
+  }
+
+  read_current_data <- function(sheet_name = NULL) {
+    read_data_file(
+      values$file_path,
+      values$file_ext,
+      sheet_name = sheet_name,
+      has_header = isTRUE(input$has_header),
+      first_col_names = isTRUE(input$first_col_names),
+      data_layout = input$data_layout %||% "auto",
+      missing_tokens = parse_missing_tokens(input$missing_tokens %||% ""),
+      zero_is_missing = isTRUE(input$zero_is_missing)
+    )
   }
 
   update_analysis_choices <- function() {
@@ -1121,13 +1163,7 @@ server <- function(input, output, session) {
     }
 
     d <- tryCatch(
-      read_data_file(
-        values$file_path,
-        values$file_ext,
-        sheet_name = sheet_name,
-        has_header = input$has_header,
-        first_col_names = input$first_col_names
-      ),
+      read_current_data(sheet_name = sheet_name),
       error = function(e) {
         showNotification(
           paste0("Sheet '", sheet_name, "' could not be loaded: ", e$message),
@@ -1166,6 +1202,8 @@ server <- function(input, output, session) {
     values$raw_data <- NULL
     values$active_sheet <- NULL
     values$column_info <- NULL
+    values$import_report <- NULL
+    values$indicator_year_map <- NULL
     reset_analysis_state(TRUE)
 
     # Clear stale browser-side selections from a previously uploaded file.
@@ -1195,9 +1233,7 @@ server <- function(input, output, session) {
 
     } else if (values$file_ext == "csv") {
       d <- tryCatch(
-        read_data_file(values$file_path, "csv",
-                       has_header = input$has_header,
-                       first_col_names = input$first_col_names),
+        read_current_data(),
         error = function(e) {
           showNotification(paste("CSV load error:", e$message), type = "error", duration = 7)
           NULL
@@ -1249,11 +1285,7 @@ server <- function(input, output, session) {
         nm <- selected[i]
         incProgress(1 / length(selected), detail = nm)
         d <- tryCatch(
-          read_data_file(
-            values$file_path, values$file_ext, sheet_name = nm,
-            has_header = input$has_header,
-            first_col_names = input$first_col_names
-          ),
+          read_current_data(sheet_name = nm),
           error = function(e) {
             showNotification(
               paste0("Sheet '", nm, "' could not be loaded: ", e$message),
@@ -1323,9 +1355,7 @@ server <- function(input, output, session) {
       load_excel_sheet_by_name(input$active_sheet, notify = TRUE)
     } else if (values$file_ext == "csv") {
       d <- tryCatch(
-        read_data_file(values$file_path, "csv",
-                       has_header = input$has_header,
-                       first_col_names = input$first_col_names),
+        read_current_data(),
         error = function(e) {
           showNotification(paste("CSV reload error:", e$message), type = "error", duration = 7)
           NULL
@@ -1346,9 +1376,7 @@ server <- function(input, output, session) {
 
     if (values$file_ext == "csv") {
       d <- tryCatch(
-        read_data_file(values$file_path, "csv",
-                       has_header = input$has_header,
-                       first_col_names = input$first_col_names),
+        read_current_data(),
         error = function(e) {
           showNotification(paste("Reload error:", e$message), type = "error", duration = 7)
           NULL
@@ -1365,9 +1393,7 @@ server <- function(input, output, session) {
         return()
       }
       d <- tryCatch(
-        read_data_file(values$file_path, values$file_ext, sheet_name = nm,
-                       has_header = input$has_header,
-                       first_col_names = input$first_col_names),
+        read_current_data(sheet_name = nm),
         error = function(e) {
           showNotification(paste("Reload error:", e$message), type = "error", duration = 7)
           NULL
@@ -1378,7 +1404,7 @@ server <- function(input, output, session) {
       set_active_sheet(nm)
     }
 
-    showNotification("Active sheet reloaded with the current header settings.",
+    showNotification("Active sheet reloaded with the current import settings.",
                      type = "message", duration = 4)
   })
 
@@ -1398,11 +1424,7 @@ server <- function(input, output, session) {
           filename = function() paste0(safe_filename(sheet_nm), ".csv"),
           content = function(file) {
             if (values$file_ext %in% c("xlsx", "xls")) {
-              d <- read_data_file(
-                values$file_path, values$file_ext, sheet_name = sheet_nm,
-                has_header = input$has_header,
-                first_col_names = input$first_col_names
-              )
+              d <- read_current_data(sheet_name = sheet_nm)
             } else {
               d <- values$sheets[[sheet_nm]]
             }
@@ -1447,11 +1469,7 @@ server <- function(input, output, session) {
 
       csv_files <- vapply(values$available_sheets, function(nm) {
         if (values$file_ext %in% c("xlsx", "xls")) {
-          d <- read_data_file(
-            values$file_path, values$file_ext, sheet_name = nm,
-            has_header = input$has_header,
-            first_col_names = input$first_col_names
-          )
+          d <- read_current_data(sheet_name = nm)
         } else {
           d <- values$sheets[[nm]]
         }
@@ -1493,6 +1511,63 @@ server <- function(input, output, session) {
       stringsAsFactors = FALSE
     )
     datatable(df, rownames = FALSE, options = list(dom = "t", pageLength = 20))
+  })
+
+  output$import_guidance <- renderUI({
+    req(values$raw_data)
+    r <- values$import_report
+    if (is.null(r)) return(helpText("No import diagnostics are available for this sheet."))
+
+    items <- list()
+    if (isTRUE(r$reshaped)) {
+      yrs <- if (length(r$years) > 0) paste(r$years, collapse = ", ") else "not identified"
+      items <- c(items, list(tags$li(
+        strong("Indicator-year structure detected and reshaped automatically. "),
+        paste0(r$indicator_count, " indicators across ", r$year_count, " years (", yrs, ").")
+      )))
+      items <- c(items, list(tags$li(
+        "Headers such as IN1-2019 and IN1-2020 now become one indicator column (IN1) plus a Year column."
+      )))
+    } else if (isTRUE(r$indicator_year_detected) && identical(r$layout_requested, "standard")) {
+      items <- c(items, list(tags$li(
+        "Indicator-year headers were detected, but the sheet was left unchanged because 'Standard / already tidy data' was selected."
+      )))
+    } else {
+      items <- c(items, list(tags$li(
+        "No multi-indicator / multi-year wide structure was auto-converted. Standard column mapping will be used."
+      )))
+    }
+
+    items <- c(items, list(tags$li(
+      paste0(r$missing_token_replacements, " text missing-value code(s) were converted to NA.")
+    )))
+
+    if (isTRUE(r$zero_is_missing)) {
+      items <- c(items, list(tags$li(
+        paste0(r$zero_replacements, " numeric zero value(s) were converted to NA because the zero-as-missing option is enabled.")
+      )))
+    } else {
+      items <- c(items, list(tags$li(
+        "Numeric 0 / 0.00 values were preserved. Enable the zero-as-missing option only when the source documentation confirms that zero means no data."
+      )))
+    }
+
+    tagList(
+      p(strong("Recommended format:"),
+        "keep both indicator and year in each header (for example IN1-2019, IN1-2020, IN2-2019). Do not replace those headers with years only."),
+      tags$ul(items)
+    )
+  })
+
+  output$indicator_year_map_table <- renderDT({
+    req(values$raw_data)
+    m <- values$indicator_year_map
+    if (is.null(m) || nrow(m) == 0) return(NULL)
+    datatable(
+      m[, c("Column", "Indicator", "Year"), drop = FALSE],
+      rownames = FALSE,
+      options = list(dom = "t", pageLength = 20, scrollX = TRUE)
+    )
   })
 
   output$upload_data_summary <- renderDT({
@@ -1617,7 +1692,7 @@ server <- function(input, output, session) {
       }
     )
     if (is.null(d) || nrow(d) == 0) {
-      showNotification("No rows remain after processing.", type = "error")
+      showNotification("No rows remain after missing-data processing. For sparse indicator-year panels, try 'Keep missing; re-normalize available weights' or an imputation method.", type = "error", duration = 9)
       return()
     }
 

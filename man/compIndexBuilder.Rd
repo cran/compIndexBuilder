@@ -11,8 +11,9 @@ compIndexBuilder(...)
 \description{
 Launches the interactive Shiny application bundled with
 \pkg{compIndexBuilder}. The application supports CSV and multi-sheet Excel
-workbooks, composite-index construction, weighting, diagnostics, time-series
-analysis, forecasting, comparisons, and pillar-based sub-indices.
+workbooks, automatic indicator-year wide-to-panel preparation, configurable
+missing-value handling, composite-index construction, weighting, diagnostics,
+time-series analysis, forecasting, comparisons, and pillar-based sub-indices.
 }
 \value{
 Invisibly returns the value returned by \code{shiny::runApp()}. The function
